@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Classroom Assistant</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      background-color: #f4f6f8;
+    }
+    header {
+      background-color: #1976d2;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+      font-size: 1.5rem;
+    }
+    main {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .controls, .webcam-container {
+      flex: 1 1 300px;
+      max-width: 600px;
+      margin: 1rem;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      padding: 1rem;
+    }
+    .button-group {
+      display: flex;
+      justify-content: space-around;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    .button-group button {
+      flex: 1 1 30%;
+      margin: 0.5rem;
+      padding: 0.75rem;
+      font-size: 1rem;
+      background-color: #1976d2;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .button-group button.active {
+      background-color: #004ba0;
+    }
+    .input-section {
+      display: none;
+      margin-top: 1rem;
+    }
+    .input-section.active {
+      display: block;
+    }
+    .webcam-video {
+      position: relative;
+      width: 100%;
+      max-width: 400px;
+      border: 2px solid #1976d2;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .instructions {
+      margin-top: 1rem;
+      font-size: 0.9rem;
+      color: #555;
+    }
+    #recordButton {
+      background-color: #d32f2f;
+      color: white;
+      border: none;
+      padding: 1rem;
+      border-radius: 50%;
+      font-size: 1.2rem;
+      cursor: pointer;
+    }
+    #recordButton.recording {
+      background-color: #c62828;
+    }
+    @media (max-width: 800px) {
+      main {
+        flex-direction: column;
+        align-items: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>🎓 AI-Powered Interactive Learning Assistant</header>
+  <main>
+    <div class="webcam-container">
+      <h3>📹 Student Engagement Monitoring</h3>
+      <video id="webcam" autoplay playsinline muted class="webcam-video"></video>
+      <div id="emotionStatus"></div>
+      <div class="instructions">
+        ✅ Your webcam runs continuously at top-right for monitoring.<br/>
+        ✅ Below, choose how you want to ask a question.
+      </div>
+    </div>
+    <div class="controls">
+      <div class="button-group">
+        <button id="btnText">Text to Text</button>
+        <button id="btnVoice">Voice to Text</button>
+        <button id="btnImage">Visual Q&A</button>
+      </div>
+      <div id="sectionText" class="input-section">
+        <input type="text" id="textInput" placeholder="Type your question" style="width: 100%; padding: 0.5rem; margin-bottom: 0.5rem;">
+        <button onclick="askText()">Ask</button>
+        <div id="textAnswer"></div>
+      </div>
+      <div id="sectionVoice" class="input-section">
+  <p>Upload an audio file (WAV recommended):</p>
+  <input type="file" id="voiceFile" accept="audio/*" style="margin-bottom: 0.5rem;">
+  <button onclick="askVoice()">Upload & Ask</button>
+  <div id="voiceTranscription" style="margin-top: 0.5rem;"></div>
+  <div id="voiceAnswer" style="margin-top: 0.5rem;"></div>
+</div>
+
+      <div id="sectionImage" class="input-section">
+        <input type="file" id="imageFile" accept="image/*" style="margin-bottom: 0.5rem;">
+        <input type="text" id="imagePrompt" placeholder="Enter prompt for image" style="width: 100%; padding: 0.5rem; margin-bottom: 0.5rem;">
+        <button onclick="askImage()">Ask</button>
+        <div id="imageAnswer"></div>
+      </div>
+    </div>
+  </main>
+  <script>
+    const btnText = document.getElementById('btnText');
+    const btnVoice = document.getElementById('btnVoice');
+    const btnImage = document.getElementById('btnImage');
+    const sectionText = document.getElementById('sectionText');
+    const sectionVoice = document.getElementById('sectionVoice');
+    const sectionImage = document.getElementById('sectionImage');
+
+    function hideAll() {
+      sectionText.classList.remove('active');
+      sectionVoice.classList.remove('active');
+      sectionImage.classList.remove('active');
+      btnText.classList.remove('active');
+      btnVoice.classList.remove('active');
+      btnImage.classList.remove('active');
+    }
+
+    btnText.onclick = () => {
+      hideAll();
+      sectionText.classList.add('active');
+      btnText.classList.add('active');
+    };
+    btnVoice.onclick = () => {
+      hideAll();
+      sectionVoice.classList.add('active');
+      btnVoice.classList.add('active');
+    };
+    btnImage.onclick = () => {
+      hideAll();
+      sectionImage.classList.add('active');
+      btnImage.classList.add('active');
+    };
+
+    // Webcam preview
+    const webcamVideo = document.getElementById('webcam');
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        webcamVideo.srcObject = stream;
+        // Periodically send frames for analysis
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        setInterval(() => {
+          canvas.width = webcamVideo.videoWidth;
+          canvas.height = webcamVideo.videoHeight;
+          context.drawImage(webcamVideo, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob(blob => {
+            const formData = new FormData();
+            formData.append('image', blob);
+            fetch('/analyze', { method: 'POST', body: formData })
+              .then(res => res.json())
+              .then(data => {
+                document.getElementById('emotionStatus').innerText = `Emotion: ${data.emotion}`;
+              });
+          }, 'image/jpeg');
+        }, 5000);
+      })
+      .catch(console.error);
+
+    function askText() {
+      const question = document.getElementById('textInput').value;
+      const formData = new FormData();
+      formData.append('question', question);
+      fetch('/ask', { method: 'POST', body: formData })
+        .then(res => res.json())
+        .then(data => {
+          document.getElementById('textAnswer').innerText = data.answer;
+        });
+    }
+
+    // Voice upload
+function askVoice() {
+  const file = document.getElementById('voiceFile').files[0];
+  if (!file) {
+    alert("Please upload an audio file.");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('audio', file);
+
+  document.getElementById('voiceTranscription').innerText = "Processing...";
+  document.getElementById('voiceAnswer').innerText = "";
+
+  fetch('/ask_voice', { method: 'POST', body: formData })
+    .then(res => res.json())
+    .then(data => {
+      if (data.error) {
+        document.getElementById('voiceTranscription').innerText = "Error: " + data.error;
+      } else {
+        document.getElementById('voiceTranscription').innerHTML = `<strong>You said:</strong> ${data.transcription}`;
+        document.getElementById('voiceAnswer').innerHTML = `<strong>Gemini:</strong> ${data.answer}`;
+      }
+    });
+}
+
+
+    function askImage() {
+      const imageFile = document.getElementById('imageFile').files[0];
+      const prompt = document.getElementById('imagePrompt').value;
+      const formData = new FormData();
+      formData.append('image', imageFile);
+      formData.append('prompt', prompt);
+      fetch('/ask_image', { method: 'POST', body: formData })
+        .then(res => res.json())
+        .then(data => {
+          document.getElementById('imageAnswer').innerText = data.answer;
+        });
+    }
+  </script>
+</body>
+</html>
