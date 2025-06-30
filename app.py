@@ -159,5 +159,4 @@ def ask_image():
     answer = get_gemini_response(parts)
     return jsonify({"answer": answer})
 
-if __name__ == '__main__':
-    app.run(debug=True)
+
