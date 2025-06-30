@@ -40,17 +40,16 @@ def get_gemini_response(parts):
 # ------------------------------
 ie = Core()
 
-face_model = ie.read_model(r"
-face-detection-retail-0004.xml")
+face_model = ie.read_model(r"face-detection-retail-0004.xml")
 face_exec = ie.compile_model(face_model, "CPU")
 face_out = face_exec.output(0)
 
-emotion_model = ie.read_model(r"C:\Users\s.v.koteswarao\intel\emotions-recognition-retail-0003\FP16\emotions-recognition-retail-0003.xml")
+emotion_model = ie.read_model(r"emotions-recognition-retail-0003.xml")
 emotion_exec = ie.compile_model(emotion_model, "CPU")
 emotion_out = emotion_exec.output(0)
 emotions = ['neutral', 'happy', 'sad', 'surprise', 'anger']
 
-head_model = ie.read_model(r"C:\Users\s.v.koteswarao\intel\head-pose-estimation-adas-0001\FP16\head-pose-estimation-adas-0001.xml")
+head_model = ie.read_model(r"head-pose-estimation-adas-0001.xml")
 head_exec = ie.compile_model(head_model, "CPU")
 head_out_yaw = head_exec.output("angle_y_fc")
 head_out_pitch = head_exec.output("angle_p_fc")
